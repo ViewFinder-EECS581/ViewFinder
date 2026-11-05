@@ -13,6 +13,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,js,mjs,ts}\" \"scripts/**/*.{js,mjs,ts}\" \"docs/**/*.md\" README.md"
   },
   "dependencies": {
+    "lucide-react": "^1.69.0",
     "maplibre-gl": "^6.16.0",
     "next": "^16.4.5",
     "react": "^19.2.0",
