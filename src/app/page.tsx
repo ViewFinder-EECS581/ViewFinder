@@ -1,7 +1,5 @@
+import { LoginScreen } from "@/features/auth/login-screen";
+
 export default function Home() {
-  return (
-    <main>
-      <h1>ViewFinder</h1>
-    </main>
-  );
+  return <LoginScreen />;
 }
