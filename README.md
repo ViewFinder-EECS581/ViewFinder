@@ -63,5 +63,3 @@ Run `npm run lint`, `npm run typecheck`, and `npm run build` before opening a pu
 - Minimalist sign-in and create-account preview
 - Public, responsive discovery map with sample Lawrence viewpoints, searchable list, selected-place card, and 3D buildings
 - Local sample data only; no Supabase, route protection, real user accounts, or saved changes yet
-
-See [`docs/style-guide.md`](./docs/style-guide.md) for UI palette and component conventions.
