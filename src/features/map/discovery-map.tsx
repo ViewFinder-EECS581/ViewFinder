@@ -15,33 +15,45 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
+import type { ViewpointWithPhotos } from "@/lib/viewpoints/types";
 import { BaseMap } from "@/features/map/base-map";
 
+// Downtown Lawrence; the map opens here even when there are no viewpoints.
 const initialMapView = {
-  longitude: mockViewpoints[0].longitude,
-  latitude: mockViewpoints[0].latitude,
+  longitude: -95.2359095,
+  latitude: 38.9497772,
   zoom: 14.4,
   pitch: 55,
   bearing: -18,
 };
 
-export function DiscoveryMap() {
+const formatCoordinates = (viewpoint: ViewpointWithPhotos) =>
+  `${viewpoint.latitude.toFixed(4)}, ${viewpoint.longitude.toFixed(4)}`;
+
+export function DiscoveryMap({
+  viewpoints,
+}: {
+  viewpoints: ViewpointWithPhotos[];
+}) {
   const mapRef = useRef<MapRef>(null);
-  const [selected, setSelected] = useState<Viewpoint>(mockViewpoints[0]);
+  const [selected, setSelected] = useState<ViewpointWithPhotos | null>(
+    viewpoints[0] ?? null,
+  );
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const visibleViewpoints = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return mockViewpoints;
-    return mockViewpoints.filter((viewpoint) =>
-      `${viewpoint.name} ${viewpoint.area}`.toLowerCase().includes(query),
+    if (!query) return viewpoints;
+    return viewpoints.filter((viewpoint) =>
+      `${viewpoint.title} ${viewpoint.description}`
+        .toLowerCase()
+        .includes(query),
     );
-  }, [search]);
+  }, [search, viewpoints]);
 
-  function selectViewpoint(viewpoint: Viewpoint) {
+  function selectViewpoint(viewpoint: ViewpointWithPhotos) {
     setSelected(viewpoint);
     mapRef.current?.flyTo({
       center: [viewpoint.longitude, viewpoint.latitude],
@@ -66,8 +78,8 @@ export function DiscoveryMap() {
         zoom={initialMapView.zoom}
         bearing={initialMapView.bearing}
       >
-        {mockViewpoints.map((viewpoint, index) => {
-          const isSelected = selected.id === viewpoint.id;
+        {viewpoints.map((viewpoint, index) => {
+          const isSelected = selected?.id === viewpoint.id;
           return (
             <Marker
               anchor="bottom"
@@ -80,10 +92,10 @@ export function DiscoveryMap() {
               }}
             >
               <button
-                aria-label={`View ${viewpoint.name}`}
+                aria-label={`View ${viewpoint.title}`}
                 className={isSelected ? "map-marker selected" : "map-marker"}
                 onClick={(event) => event.stopPropagation()}
-                title={viewpoint.name}
+                title={viewpoint.title}
                 type="button"
               >
                 {isSelected ? (
@@ -191,9 +203,9 @@ export function DiscoveryMap() {
           ) : (
             visibleViewpoints.map((viewpoint, index) => (
               <button
-                aria-pressed={selected.id === viewpoint.id}
+                aria-pressed={selected?.id === viewpoint.id}
                 className={
-                  selected.id === viewpoint.id
+                  selected?.id === viewpoint.id
                     ? "place-row selected"
                     : "place-row"
                 }
@@ -205,8 +217,8 @@ export function DiscoveryMap() {
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="place-row-copy">
-                  <strong>{viewpoint.name}</strong>
-                  <span>{viewpoint.area.split(" · ")[0]}</span>
+                  <strong>{viewpoint.title}</strong>
+                  <span>{formatCoordinates(viewpoint)}</span>
                 </span>
                 <ArrowUpRight
                   aria-hidden="true"
@@ -228,37 +240,43 @@ export function DiscoveryMap() {
         </button>
       </aside>
 
-      <section
-        aria-label={`Selected viewpoint: ${selected.name}`}
-        className={listOpen ? "selected-card mobile-hidden" : "selected-card"}
-      >
-        <div
-          aria-hidden="true"
-          className="selected-image"
-          style={{ backgroundImage: `url("${selected.image}")` }}
+      {selected && (
+        <section
+          aria-label={`Selected viewpoint: ${selected.title}`}
+          className={listOpen ? "selected-card mobile-hidden" : "selected-card"}
         >
-          <span className="image-tag">
-            <Compass size={13} />
-            Worth the detour
-          </span>
-        </div>
-        <div className="selected-content">
-          <div className="selected-copy">
-            <span className="eyebrow">{selected.area}</span>
-            <h2>{selected.name}</h2>
-            <p>{selected.note}</p>
-          </div>
-          <button
-            aria-label="Center map on selected place"
-            className="round-arrow"
-            onClick={() => selectViewpoint(selected)}
-            title="Center map on selected place"
-            type="button"
+          <div
+            aria-hidden="true"
+            className="selected-image"
+            style={
+              selected.photos[0]
+                ? { backgroundImage: `url("${selected.photos[0].url}")` }
+                : undefined
+            }
           >
-            <ArrowUpRight size={18} />
-          </button>
-        </div>
-      </section>
+            <span className="image-tag">
+              <Compass size={13} />
+              Worth the detour
+            </span>
+          </div>
+          <div className="selected-content">
+            <div className="selected-copy">
+              <span className="eyebrow">{formatCoordinates(selected)}</span>
+              <h2>{selected.title}</h2>
+              <p>{selected.description}</p>
+            </div>
+            <button
+              aria-label="Center map on selected place"
+              className="round-arrow"
+              onClick={() => selectViewpoint(selected)}
+              title="Center map on selected place"
+              type="button"
+            >
+              <ArrowUpRight size={18} />
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="map-tools">
         <button
