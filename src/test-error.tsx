@@ -1,3 +1,4 @@
-export default function TestError() {
-  return <img src="/test.png" />;
-}
+const buildTest: string = 123;
+
+export default buildTest;
+
