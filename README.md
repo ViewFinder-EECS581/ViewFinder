@@ -51,11 +51,17 @@
 
 Run `npm run lint`, `npm run typecheck`, and `npm run build` before opening a pull request. Copy `.env.example` to `.env.local` for local settings; never commit credentials. The scaffold's sign-in page is a preview and does not create or authenticate accounts. Map browsing is public, with the current demo region set to Lawrence, Kansas.
 
+## Continuous integration
+
+The **Pull request checks** GitHub Actions workflow runs `npm run lint`, `npm run typecheck`, and `npm run build` for every pull request. The workflow installs dependencies from `package-lock.json` with `npm ci`; a failure in any check fails the workflow.
+
+To require these checks before merging, configure a branch ruleset or branch protection rule for `main` and select **Lint, type-check, and build** as a required status check. Availability and settings can vary by repository plan.
+
 ## Project workflow
 
 - Start a branch from the latest `main` for each ticket or focused feature slice.
 - Keep each pull request focused, reference the issue(s) it addresses, and avoid closing an issue until its acceptance criteria are met.
-- Run lint, type-check, and build before opening a pull request.
+- Run lint, type-check, and build locally before opening a pull request; the same checks run automatically in CI.
 - Request a teammate review; merge only after approval and passing checks.
 - Coordinate Supabase access through the project owner; do not add secrets to the repository.
 
