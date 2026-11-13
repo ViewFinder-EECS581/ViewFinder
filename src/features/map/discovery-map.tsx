@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
 import {
@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
 import { BaseMap } from "@/features/map/base-map";
+import { useViewpointSearch } from "@/features/list/use-viewpoint-search";
+import { ViewpointList } from "@/features/list/viewpoint-list";
 
 const initialMapView = {
   longitude: mockViewpoints[0].longitude,
@@ -29,17 +31,13 @@ const initialMapView = {
 export function DiscoveryMap() {
   const mapRef = useRef<MapRef>(null);
   const [selected, setSelected] = useState<Viewpoint>(mockViewpoints[0]);
-  const [search, setSearch] = useState("");
+  const { search, setSearch, visibleViewpoints } = useViewpointSearch();
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const visibleViewpoints = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return mockViewpoints;
-    return mockViewpoints.filter((viewpoint) =>
-      `${viewpoint.name} ${viewpoint.area}`.toLowerCase().includes(query),
-    );
-  }, [search]);
+  const activeSelection = visibleViewpoints.find(
+    (viewpoint) => viewpoint.id === selected.id,
+  ) ?? visibleViewpoints[0];
 
   function selectViewpoint(viewpoint: Viewpoint) {
     setSelected(viewpoint);
@@ -66,8 +64,8 @@ export function DiscoveryMap() {
         zoom={initialMapView.zoom}
         bearing={initialMapView.bearing}
       >
-        {mockViewpoints.map((viewpoint, index) => {
-          const isSelected = selected.id === viewpoint.id;
+        {visibleViewpoints.map((viewpoint, index) => {
+          const isSelected = activeSelection?.id === viewpoint.id;
           return (
             <Marker
               anchor="bottom"
@@ -183,39 +181,11 @@ export function DiscoveryMap() {
         </p>
 
         <div className="place-list" aria-label="Nearby viewpoints">
-          {visibleViewpoints.length === 0 ? (
-            <div className="empty-search">
-              <Search size={18} />
-              <p>No places match that search.</p>
-            </div>
-          ) : (
-            visibleViewpoints.map((viewpoint, index) => (
-              <button
-                aria-pressed={selected.id === viewpoint.id}
-                className={
-                  selected.id === viewpoint.id
-                    ? "place-row selected"
-                    : "place-row"
-                }
-                key={viewpoint.id}
-                onClick={() => selectViewpoint(viewpoint)}
-                type="button"
-              >
-                <span className="place-index">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="place-row-copy">
-                  <strong>{viewpoint.name}</strong>
-                  <span>{viewpoint.area.split(" · ")[0]}</span>
-                </span>
-                <ArrowUpRight
-                  aria-hidden="true"
-                  className="place-arrow"
-                  size={16}
-                />
-              </button>
-            ))
-          )}
+          <ViewpointList
+            viewpoints={visibleViewpoints}
+            selectedId={activeSelection?.id}
+            onSelect={selectViewpoint}
+          />
         </div>
 
         <button
@@ -228,14 +198,14 @@ export function DiscoveryMap() {
         </button>
       </aside>
 
-      <section
-        aria-label={`Selected viewpoint: ${selected.name}`}
+      {activeSelection && <section
+        aria-label={`Selected viewpoint: ${activeSelection.name}`}
         className={listOpen ? "selected-card mobile-hidden" : "selected-card"}
       >
         <div
           aria-hidden="true"
           className="selected-image"
-          style={{ backgroundImage: `url("${selected.image}")` }}
+          style={{ backgroundImage: `url("${activeSelection.image}")` }}
         >
           <span className="image-tag">
             <Compass size={13} />
@@ -244,21 +214,21 @@ export function DiscoveryMap() {
         </div>
         <div className="selected-content">
           <div className="selected-copy">
-            <span className="eyebrow">{selected.area}</span>
-            <h2>{selected.name}</h2>
-            <p>{selected.note}</p>
+          <span className="eyebrow">{activeSelection.area}</span>
+          <h2>{activeSelection.name}</h2>
+          <p>{activeSelection.note}</p>
           </div>
           <button
             aria-label="Center map on selected place"
             className="round-arrow"
-            onClick={() => selectViewpoint(selected)}
+            onClick={() => selectViewpoint(activeSelection)}
             title="Center map on selected place"
             type="button"
           >
             <ArrowUpRight size={18} />
           </button>
         </div>
-      </section>
+      </section>}
 
       <div className="map-tools">
         <button

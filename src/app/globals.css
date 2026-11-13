@@ -478,11 +478,11 @@ a {
 .map-topbar {
   position: absolute;
   z-index: 3;
-  top: 20px;
-  right: 22px;
+  top: 9px;
+  right: 52px;
   left: 22px;
   display: flex;
-  height: 62px;
+  height: 22px;
   align-items: center;
   gap: clamp(18px, 3vw, 44px);
   padding: 0 16px 0 20px;
