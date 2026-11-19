@@ -819,6 +819,10 @@ a {
   padding: 15px 14px;
 }
 
+.selected-content .selected-copy {
+  flex: 1;
+}
+
 .selected-copy .eyebrow {
   font-size: 8px;
   letter-spacing: 1.1px;
@@ -854,6 +858,30 @@ a {
 
 .round-arrow:hover {
   background: #f0f3ed;
+}
+
+.directions-arrow {
+  color: #48624b;
+}
+
+.directions-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 0 14px;
+  border: 1px solid #dfe5dc;
+  border-radius: 4px;
+  background: var(--green);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.directions-link:hover {
+  background: #4f664f;
 }
 
 .map-tools {

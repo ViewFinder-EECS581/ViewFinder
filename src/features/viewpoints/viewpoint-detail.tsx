@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, MapPin, Navigation } from "lucide-react";
 import { getViewpoint, subscribeToViewpoints, type SubmittedViewpoint } from "@/lib/viewpoint-store";
 import type { Viewpoint } from "@/lib/mock-viewpoints";
 import { RichText } from "@/features/viewpoints/rich-text";
+import { getDirectionsUrl } from "@/features/viewpoints/directions";
 
 export function ViewpointDetail({ id }: { id: string }) {
   const [viewpoint, setViewpoint] = useState<Viewpoint | SubmittedViewpoint | undefined>(() => getViewpoint(id));
@@ -47,6 +48,15 @@ export function ViewpointDetail({ id }: { id: string }) {
             <MapPin size={16} aria-hidden="true" />
             <span>{viewpoint.latitude.toFixed(5)}, {viewpoint.longitude.toFixed(5)}</span>
           </div>
+          <a
+            className="directions-link"
+            href={getDirectionsUrl(viewpoint.latitude, viewpoint.longitude)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <Navigation aria-hidden="true" size={16} />
+            <span>Get directions</span>
+          </a>
         </div>
       </article>
     </main>
