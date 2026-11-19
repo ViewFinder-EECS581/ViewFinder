@@ -10,6 +10,7 @@ import {
   ListFilter,
   MapPin,
   Menu,
+  Navigation,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -21,6 +22,7 @@ import {
   subscribeToViewpoints,
 } from "@/lib/viewpoint-store";
 import { BaseMap } from "@/features/map/base-map";
+import { getDirectionsUrl } from "@/features/viewpoints/directions";
 
 const initialMapView = {
   longitude: mockViewpoints[0].longitude,
@@ -269,6 +271,16 @@ export function DiscoveryMap() {
           >
             <ArrowUpRight size={18} />
           </Link>
+          <a
+            aria-label={`Get directions to ${selected.name}`}
+            className="round-arrow directions-arrow"
+            href={getDirectionsUrl(selected.latitude, selected.longitude)}
+            rel="noopener noreferrer"
+            target="_blank"
+            title="Get directions"
+          >
+            <Navigation aria-hidden="true" size={16} />
+          </a>
         </div>
       </section>
 
