@@ -1,12 +1,13 @@
 "use client";
 
 import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
+import type { JSONContent } from "@tiptap/react";
 
 const VIEWPOINT_STORE_KEY = "viewfinder-viewpoints";
 const VIEWPOINT_STORE_EVENT = "viewfinder:viewpoints-change";
 
 export type SubmittedViewpoint = Viewpoint & {
-  description: string;
+  description: JSONContent;
   photoName: string;
 };
 

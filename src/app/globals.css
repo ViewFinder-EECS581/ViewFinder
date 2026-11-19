@@ -1329,10 +1329,53 @@ a {
   padding: 0 14px;
 }
 
-.upload-form textarea {
-  resize: vertical;
+.rich-text-editor {
+  overflow: hidden;
+  border: 1px solid #dde2da;
+  border-radius: 4px;
+  background: #fcfcfa;
+}
+
+.rich-text-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid #e6e9e2;
+}
+
+.rich-text-toolbar button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #596158;
+  cursor: pointer;
+}
+
+.rich-text-toolbar button:hover,
+.rich-text-toolbar button[aria-pressed="true"] {
+  background: #edf1ea;
+  color: #25382b;
+}
+
+.rich-text-editor-content {
+  min-height: 128px;
   padding: 13px 14px;
+  color: var(--ink);
+  font-size: 14px;
   line-height: 1.55;
+  outline: none;
+}
+
+.rich-text-editor-content p {
+  margin: 0 0 8px;
+}
+
+.rich-text-editor-content p:last-child {
+  margin-bottom: 0;
 }
 
 .photo-field {
@@ -1466,6 +1509,37 @@ a {
   color: #626960;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.detail-rich-text {
+  color: #626960;
+  line-height: 1.7;
+}
+
+.detail-rich-text p {
+  margin: 0 0 12px;
+}
+
+.detail-rich-text p:last-child {
+  margin-bottom: 0;
+}
+
+.detail-rich-text ul,
+.detail-rich-text ol {
+  margin: 8px 0 12px;
+  padding-left: 22px;
+}
+
+.detail-rich-text a {
+  color: #52755d;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.detail-rich-text code,
+.detail-rich-text pre {
+  border-radius: 4px;
+  background: #f1f3ee;
 }
 
 .detail-location {

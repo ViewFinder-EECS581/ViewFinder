@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, MapPin, Navigation } from "lucide-react";
 import { getViewpoint, subscribeToViewpoints, type SubmittedViewpoint } from "@/lib/viewpoint-store";
 import type { Viewpoint } from "@/lib/mock-viewpoints";
+import { RichText } from "@/features/viewpoints/rich-text";
 import { getDirectionsUrl } from "@/features/viewpoints/directions";
 
 export function ViewpointDetail({ id }: { id: string }) {
@@ -38,7 +39,11 @@ export function ViewpointDetail({ id }: { id: string }) {
         <div className="detail-copy">
           <p className="eyebrow">{viewpoint.area}</p>
           <h1>{viewpoint.name}</h1>
-          <p className="detail-description">{viewpoint.note}</p>
+          {"description" in viewpoint ? (
+            <RichText value={viewpoint.description} />
+          ) : (
+            <p className="detail-description">{viewpoint.note}</p>
+          )}
           <div className="detail-location">
             <MapPin size={16} aria-hidden="true" />
             <span>{viewpoint.latitude.toFixed(5)}, {viewpoint.longitude.toFixed(5)}</span>

@@ -1,29 +1,46 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, LoaderCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { isSignedIn } from "@/lib/auth-session";
+import { isSignedIn, subscribeToAuthSession } from "@/lib/auth-session";
 import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
 import { validatePhoto } from "@/features/upload/upload-service";
+import { RichTextEditor, type JSONContent } from "@/features/upload/rich-text-editor";
+import { richTextText, sanitizeRichTextJson } from "@/features/viewpoints/rich-text";
+
+const subscribeToNothing = () => () => {};
 
 export function UploadForm() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [signedIn] = useState(() => isSignedIn());
+  const hydrated = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+  const signedIn = useSyncExternalStore(
+    subscribeToAuthSession,
+    isSignedIn,
+    () => false,
+  );
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [description, setDescription] = useState<JSONContent>({
+    type: "doc",
+    content: [{ type: "paragraph" }],
+  });
 
   useEffect(() => {
-    if (!signedIn) {
+    if (hydrated && !signedIn) {
       router.replace("/?next=/upload");
     }
-  }, [router, signedIn]);
+  }, [hydrated, router, signedIn]);
 
   useEffect(() => {
     return () => {
@@ -62,10 +79,11 @@ export function UploadForm() {
 
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") ?? "").trim();
-    const description = String(data.get("description") ?? "").trim();
+    const descriptionJson = sanitizeRichTextJson(description);
+    const descriptionText = richTextText(descriptionJson);
     const latitude = Number(data.get("latitude"));
     const longitude = Number(data.get("longitude"));
-    if (!title || !description) {
+    if (!title || !descriptionText) {
       setError("Add a title and description.");
       return;
     }
@@ -105,8 +123,8 @@ export function UploadForm() {
         area: "Uploaded viewpoint",
         latitude,
         longitude,
-        note: description,
-        description,
+        note: descriptionText,
+        description: descriptionJson,
         image: uploaded.publicUrl,
         photoName: photo.name,
       });
@@ -122,7 +140,7 @@ export function UploadForm() {
     }
   }
 
-  if (!signedIn) return null;
+  if (!hydrated || !signedIn) return null;
 
   return (
     <main className="upload-shell">
@@ -151,12 +169,7 @@ export function UploadForm() {
 
           <label className="field">
             <span>Description</span>
-            <textarea
-              name="description"
-              placeholder="What makes this place worth finding?"
-              required
-              rows={5}
-            />
+            <RichTextEditor value={description} onChange={setDescription} />
           </label>
 
           <div className="photo-field">
