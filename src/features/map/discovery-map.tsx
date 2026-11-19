@@ -199,9 +199,12 @@ export function DiscoveryMap() {
 
         <div className="place-list" aria-label="Nearby viewpoints">
           {visibleViewpoints.length === 0 ? (
-            <div className="empty-search">
+            <div className="empty-search" role="status" aria-live="polite">
               <Search size={18} />
               <p>No places match that search.</p>
+              <button type="button" onClick={() => setSearch("")}>
+                Clear search
+              </button>
             </div>
           ) : (
             visibleViewpoints.map((viewpoint, index) => (

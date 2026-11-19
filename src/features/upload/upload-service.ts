@@ -17,6 +17,20 @@ export class PhotoUploadError extends Error {
   }
 }
 
+export function getFriendlyUploadError(error: unknown): string {
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      /failed to fetch|network|load failed/i.test(error.message))
+  ) {
+    return "We couldn't reach photo storage. Check your connection and try again.";
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return "The upload failed. Nothing was saved.";
+}
+
 export function detectPhotoMimeType(bytes: Uint8Array): PhotoMimeType | null {
   if (
     bytes.length >= 8 &&

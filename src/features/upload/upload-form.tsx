@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isSignedIn, subscribeToAuthSession } from "@/lib/auth-session";
 import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
-import { validatePhoto } from "@/features/upload/upload-service";
+import {
+  getFriendlyUploadError,
+  validatePhoto,
+} from "@/features/upload/upload-service";
 import { RichTextEditor, type JSONContent } from "@/features/upload/rich-text-editor";
 import { richTextText, sanitizeRichTextJson } from "@/features/viewpoints/rich-text";
 
@@ -30,6 +33,7 @@ export function UploadForm() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [readingPhoto, setReadingPhoto] = useState(false);
   const [error, setError] = useState("");
   const [description, setDescription] = useState<JSONContent>({
     type: "doc",
@@ -51,7 +55,14 @@ export function UploadForm() {
   function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
     setError("");
-    if (!file) return;
+    if (!file) {
+      setPhoto(null);
+      setPreview("");
+      return;
+    }
+    setReadingPhoto(true);
+    setPhoto(null);
+    setPreview("");
     void file.arrayBuffer()
       .then((buffer) => {
         validatePhoto(new Uint8Array(buffer), file.type, file.size);
@@ -65,7 +76,8 @@ export function UploadForm() {
             : "Choose a valid PNG, JPEG, or WEBP image.",
         );
         event.target.value = "";
-      });
+      })
+      .finally(() => setReadingPhoto(false));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -130,11 +142,7 @@ export function UploadForm() {
       });
       router.push(`/viewpoints/${id}`);
     } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "The upload failed. Nothing was saved.",
-      );
+      setError(getFriendlyUploadError(submitError));
     } finally {
       setSubmitting(false);
     }
@@ -194,8 +202,8 @@ export function UploadForm() {
               ) : (
                 <>
                   <ImagePlus size={26} aria-hidden="true" />
-                  <strong>Choose a photo</strong>
-                  <span>PNG, JPG, or WEBP · up to 10 MB</span>
+                  <strong>{readingPhoto ? "Reading photo…" : "Choose a photo"}</strong>
+                  <span>{readingPhoto ? "Checking the image" : "PNG, JPG, or WEBP · up to 10 MB"}</span>
                 </>
               )}
             </label>
@@ -215,7 +223,7 @@ export function UploadForm() {
 
           {error && <p className="form-error" role="alert">{error}</p>}
 
-          <Button className="upload-submit" disabled={submitting} type="submit">
+          <Button className="upload-submit" disabled={submitting || readingPhoto} type="submit">
             {submitting ? (
               <>
                 <LoaderCircle className="spinner" size={17} aria-hidden="true" />
