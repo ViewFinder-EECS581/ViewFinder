@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isSignedIn } from "@/lib/auth-session";
 import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
+import { validatePhoto } from "@/features/upload/upload-service";
 
 export function UploadForm() {
   const router = useRouter();
@@ -34,27 +35,20 @@ export function UploadForm() {
     const file = event.target.files?.[0] ?? null;
     setError("");
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Choose an image file.");
-      event.target.value = "";
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Choose a photo smaller than 5 MB.");
-      event.target.value = "";
-      return;
-    }
-    setPhoto(file);
-    setPreview(URL.createObjectURL(file));
-  }
-
-  function readPhoto(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("The photo could not be read."));
-      reader.readAsDataURL(file);
-    });
+    void file.arrayBuffer()
+      .then((buffer) => {
+        validatePhoto(new Uint8Array(buffer), file.type, file.size);
+        setPhoto(file);
+        setPreview(URL.createObjectURL(file));
+      })
+      .catch((validationError) => {
+        setError(
+          validationError instanceof Error
+            ? validationError.message
+            : "Choose a valid PNG, JPEG, or WEBP image.",
+        );
+        event.target.value = "";
+      });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -86,7 +80,24 @@ export function UploadForm() {
 
     setSubmitting(true);
     try {
-      const photoData = await readPhoto(photo);
+      const uploadData = new FormData();
+      uploadData.append("photo", photo);
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadData,
+      });
+      const uploaded = await uploadResponse.json() as
+        | { path: string; publicUrl: string }
+        | { error: string };
+      if (!uploadResponse.ok) {
+        throw new Error(
+          "error" in uploaded ? uploaded.error : "The photo upload failed.",
+        );
+      }
+      if (!("publicUrl" in uploaded)) {
+        throw new Error("The photo upload did not return a public URL.");
+      }
+
       const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")}-${Date.now()}`;
       saveSubmittedViewpoint({
         id,
@@ -96,7 +107,7 @@ export function UploadForm() {
         longitude,
         note: description,
         description,
-        image: photoData,
+        image: uploaded.publicUrl,
         photoName: photo.name,
       });
       router.push(`/viewpoints/${id}`);
@@ -152,7 +163,7 @@ export function UploadForm() {
             <span>Photo</span>
             <input
               ref={fileInputRef}
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               className="photo-input"
               id="viewpoint-photo"
               name="photo"
@@ -171,7 +182,7 @@ export function UploadForm() {
                 <>
                   <ImagePlus size={26} aria-hidden="true" />
                   <strong>Choose a photo</strong>
-                  <span>PNG, JPG, or other image · up to 5 MB</span>
+                  <span>PNG, JPG, or WEBP · up to 10 MB</span>
                 </>
               )}
             </label>
