@@ -1,3 +1,4 @@
+
 export type Viewpoint = {
   id: string;
   name: string;
@@ -6,6 +7,8 @@ export type Viewpoint = {
   longitude: number;
   note: string;
   image: string;
+  /** Display name of the person who shared the viewpoint. */
+  creator?: string;
 };
 
 export const mockViewpoints: Viewpoint[] = [
@@ -16,6 +19,7 @@ export const mockViewpoints: Viewpoint[] = [
     latitude: 38.9497772,
     longitude: -95.2359095,
     note: "A slow stroll past the heart of downtown.",
+    creator: "ViewFinder team",
     image:
       "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=720&q=85",
   },
@@ -26,6 +30,7 @@ export const mockViewpoints: Viewpoint[] = [
     latitude: 38.9799457,
     longitude: -95.2413074,
     note: "A riverside pause beneath the open Kansas sky.",
+    creator: "ViewFinder team",
     image:
       "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=720&q=85",
   },
@@ -36,6 +41,7 @@ export const mockViewpoints: Viewpoint[] = [
     latitude: 38.9603032,
     longitude: -95.2486305,
     note: "A calm pocket of water on the hilltop campus.",
+    creator: "ViewFinder team",
     image:
       "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=720&q=85",
   },
@@ -46,6 +52,7 @@ export const mockViewpoints: Viewpoint[] = [
     latitude: 38.9330757,
     longitude: -95.2155032,
     note: "A quiet trail through prairie and woodland.",
+    creator: "ViewFinder team",
     image:
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=720&q=85",
   },
@@ -56,6 +63,7 @@ export const mockViewpoints: Viewpoint[] = [
     latitude: 38.9381278,
     longitude: -95.3687087,
     note: "Big-sky shoreline a short drive west of town.",
+    creator: "ViewFinder team",
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=720&q=85",
   },
