@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
 import {
@@ -16,6 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
+import {
+  getAllViewpoints,
+  subscribeToViewpoints,
+} from "@/lib/viewpoint-store";
 import { BaseMap } from "@/features/map/base-map";
 
 const initialMapView = {
@@ -32,14 +36,19 @@ export function DiscoveryMap() {
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [viewpoints, setViewpoints] = useState(getAllViewpoints);
+
+  useEffect(() => {
+    return subscribeToViewpoints(() => setViewpoints(getAllViewpoints()));
+  }, []);
 
   const visibleViewpoints = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return mockViewpoints;
-    return mockViewpoints.filter((viewpoint) =>
+    if (!query) return viewpoints;
+    return viewpoints.filter((viewpoint) =>
       `${viewpoint.name} ${viewpoint.area}`.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [search, viewpoints]);
 
   function selectViewpoint(viewpoint: Viewpoint) {
     setSelected(viewpoint);
@@ -66,7 +75,7 @@ export function DiscoveryMap() {
         zoom={initialMapView.zoom}
         bearing={initialMapView.bearing}
       >
-        {mockViewpoints.map((viewpoint, index) => {
+        {viewpoints.map((viewpoint, index) => {
           const isSelected = selected.id === viewpoint.id;
           return (
             <Marker
@@ -121,6 +130,10 @@ export function DiscoveryMap() {
           />
         </div>
         <div className="topbar-actions">
+          <Link className="quiet-button" href="/upload">
+            <MapPin aria-hidden="true" size={16} />
+            <span>Upload</span>
+          </Link>
           <button
             aria-expanded={filtersOpen}
             className={filtersOpen ? "quiet-button active" : "quiet-button"}
@@ -248,15 +261,14 @@ export function DiscoveryMap() {
             <h2>{selected.name}</h2>
             <p>{selected.note}</p>
           </div>
-          <button
-            aria-label="Center map on selected place"
+          <Link
+            aria-label={`Open ${selected.name} detail`}
             className="round-arrow"
-            onClick={() => selectViewpoint(selected)}
-            title="Center map on selected place"
-            type="button"
+            href={`/viewpoints/${selected.id}`}
+            title="Open viewpoint detail"
           >
             <ArrowUpRight size={18} />
-          </button>
+          </Link>
         </div>
       </section>
 
