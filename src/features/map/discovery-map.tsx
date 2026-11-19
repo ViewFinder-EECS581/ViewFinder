@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
 import {
@@ -33,6 +34,7 @@ const initialMapView = {
 };
 
 export function DiscoveryMap() {
+  const router = useRouter();
   const mapRef = useRef<MapRef>(null);
   const [selected, setSelected] = useState<Viewpoint>(mockViewpoints[0]);
   const [search, setSearch] = useState("");
@@ -76,6 +78,14 @@ export function DiscoveryMap() {
         pitch={initialMapView.pitch}
         zoom={initialMapView.zoom}
         bearing={initialMapView.bearing}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.originalEvent.preventDefault();
+          const { lat, lng } = event.lngLat;
+          router.push(
+            `/upload?latitude=${lat.toFixed(6)}&longitude=${lng.toFixed(6)}`,
+          );
+        }}
       >
         {viewpoints.map((viewpoint, index) => {
           const isSelected = selected.id === viewpoint.id;

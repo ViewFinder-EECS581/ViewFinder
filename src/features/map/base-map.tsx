@@ -4,6 +4,7 @@ import type { ReactNode, Ref } from "react";
 import Map, {
   Layer,
   type LayerProps,
+  type MapLayerMouseEvent,
   type MapRef,
 } from "react-map-gl/maplibre";
 import type { FilterSpecification } from "maplibre-gl";
@@ -48,6 +49,7 @@ type BaseMapProps = {
   mapRef?: Ref<MapRef>;
   children?: ReactNode;
   label?: string;
+  onContextMenu?: (event: MapLayerMouseEvent) => void;
 };
 
 export function BaseMap({
@@ -58,6 +60,7 @@ export function BaseMap({
   mapRef,
   children,
   label = "Interactive map",
+  onContextMenu,
 }: BaseMapProps) {
   return (
     <Map
@@ -67,6 +70,7 @@ export function BaseMap({
       mapStyle={mapStyle}
       maxPitch={65}
       minZoom={3}
+      onContextMenu={onContextMenu}
       reuseMaps
       workerUrl="/maplibre-gl-worker.mjs"
       style={{ position: "absolute", inset: 0 }}

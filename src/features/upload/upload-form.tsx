@@ -14,6 +14,8 @@ import { categoryGroups, type CategoryId } from "@/lib/categories";
 export function UploadForm() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const latitudeInputRef = useRef<HTMLInputElement>(null);
+  const longitudeInputRef = useRef<HTMLInputElement>(null);
   const [signedIn] = useState(() => isSignedIn());
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
@@ -25,6 +27,14 @@ export function UploadForm() {
       router.replace("/?next=/upload");
     }
   }, [router, signedIn]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const latitude = params.get("latitude");
+    const longitude = params.get("longitude");
+    if (latitude && latitudeInputRef.current) latitudeInputRef.current.value = latitude;
+    if (longitude && longitudeInputRef.current) longitudeInputRef.current.value = longitude;
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -195,11 +205,11 @@ export function UploadForm() {
             <legend><MapPin size={15} aria-hidden="true" /> Location</legend>
             <label className="field">
               <span>Latitude</span>
-              <Input name="latitude" inputMode="decimal" placeholder="38.9717" required step="any" type="number" />
+              <Input ref={latitudeInputRef} name="latitude" inputMode="decimal" placeholder="38.9717" required step="any" type="number" />
             </label>
             <label className="field">
               <span>Longitude</span>
-              <Input name="longitude" inputMode="decimal" placeholder="-95.2353" required step="any" type="number" />
+              <Input ref={longitudeInputRef} name="longitude" inputMode="decimal" placeholder="-95.2353" required step="any" type="number" />
             </label>
           </fieldset>
 
