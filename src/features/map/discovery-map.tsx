@@ -114,6 +114,12 @@ export function DiscoveryMap() {
           <input
             aria-label="Search places"
             onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && visibleViewpoints[0]) {
+                event.preventDefault();
+                selectViewpoint(visibleViewpoints[0]);
+              }
+            }}
             placeholder="Find somewhere…"
             value={search}
           />
