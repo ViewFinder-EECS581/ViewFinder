@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
 import {
@@ -23,6 +23,11 @@ import {
 } from "@/lib/viewpoint-store";
 import { BaseMap } from "@/features/map/base-map";
 import { getDirectionsUrl } from "@/features/viewpoints/directions";
+import {
+  getOnboardingDismissedSnapshot,
+  rememberOnboardingDismissal,
+  subscribeToOnboarding,
+} from "@/features/map/onboarding";
 
 const initialMapView = {
   longitude: mockViewpoints[0].longitude,
@@ -39,10 +44,43 @@ export function DiscoveryMap() {
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewpoints, setViewpoints] = useState(getAllViewpoints);
+  const onboardingDismissed = useSyncExternalStore(
+    subscribeToOnboarding,
+    getOnboardingDismissedSnapshot,
+    () => true,
+  );
+  const onboardingOpen = !onboardingDismissed;
+  const onboardingCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     return subscribeToViewpoints(() => setViewpoints(getAllViewpoints()));
   }, []);
+
+  const dismissOnboarding = useCallback(() => {
+    try {
+      rememberOnboardingDismissal(window.localStorage);
+    } catch {
+      // The modal can still be dismissed when storage is unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!onboardingOpen) return;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    onboardingCloseRef.current?.focus();
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") dismissOnboarding();
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      previouslyFocused?.focus();
+    };
+  }, [dismissOnboarding, onboardingOpen]);
 
   const visibleViewpoints = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -66,6 +104,64 @@ export function DiscoveryMap() {
 
   return (
     <main className="discovery-shell">
+      {onboardingOpen && (
+        <div className="onboarding-backdrop">
+          <section
+            aria-labelledby="onboarding-title"
+            aria-modal="true"
+            className="onboarding-modal"
+            role="dialog"
+          >
+            <button
+              aria-label="Close welcome guide"
+              className="onboarding-close"
+              onClick={dismissOnboarding}
+              ref={onboardingCloseRef}
+              type="button"
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+            <p className="eyebrow">Welcome to ViewFinder</p>
+            <h1 id="onboarding-title">Find a place worth slowing down for.</h1>
+            <div className="onboarding-steps">
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <Compass aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Explore the map</strong>
+                  <p>Drag to move, pinch or scroll to zoom, and select a marker to view a place.</p>
+                </div>
+              </div>
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <SlidersHorizontal aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Search and filter</strong>
+                  <p>Use search or Filters to narrow down viewpoints and find a view that fits.</p>
+                </div>
+              </div>
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <MapPin aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Share a viewpoint</strong>
+                  <p>Select Upload, add a photo and location details, then share your good find.</p>
+                </div>
+              </div>
+            </div>
+            <button
+              className="onboarding-primary"
+              onClick={dismissOnboarding}
+              type="button"
+            >
+              Explore the map
+            </button>
+          </section>
+        </div>
+      )}
       <BaseMap
         mapRef={mapRef}
         center={{
