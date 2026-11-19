@@ -3,6 +3,7 @@ import {
   MAX_PHOTO_BYTES,
   PhotoUploadError,
   detectPhotoMimeType,
+  getFriendlyUploadError,
   validatePhoto,
 } from "./upload-service";
 
@@ -34,5 +35,11 @@ describe("photo upload validation", () => {
       "image/png",
       3,
     )).toThrow(PhotoUploadError);
+  });
+
+  it("shows a friendly message for upload network failures", () => {
+    expect(getFriendlyUploadError(new TypeError("Failed to fetch"))).toBe(
+    "We couldn't reach photo storage. Check your connection and try again.",
+    );
   });
 });
