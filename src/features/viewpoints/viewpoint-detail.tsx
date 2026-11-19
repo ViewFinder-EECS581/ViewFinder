@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Navigation } from "lucide-react";
 import { getViewpoint, subscribeToViewpoints, type SubmittedViewpoint } from "@/lib/viewpoint-store";
 import type { Viewpoint } from "@/lib/mock-viewpoints";
 import { getDirectionsUrl } from "@/features/viewpoints/directions";
+import { categoryGroups, getCategoryLabel } from "@/lib/categories";
 
 export function ViewpointDetail({ id }: { id: string }) {
   const [viewpoint, setViewpoint] = useState<Viewpoint | SubmittedViewpoint | undefined>(() => getViewpoint(id));
@@ -39,6 +40,24 @@ export function ViewpointDetail({ id }: { id: string }) {
           <p className="eyebrow">{viewpoint.area}</p>
           <h1>{viewpoint.name}</h1>
           <p className="detail-description">{viewpoint.note}</p>
+          {!!viewpoint.categoryIds?.length && (
+            <div className="detail-categories" aria-label="Viewpoint categories">
+              {categoryGroups.map((group) => {
+                const categoryIds = viewpoint.categoryIds?.filter((id) =>
+                  group.categories.some((category) => category.id === id),
+                ) ?? [];
+                if (!categoryIds.length) return null;
+                return (
+                  <section className="detail-category-group" key={group.id}>
+                    <h2>{group.label}</h2>
+                    <ul>
+                      {categoryIds.map((id) => <li key={id}>{getCategoryLabel(id)}</li>)}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+          )}
           <div className="detail-location">
             <MapPin size={16} aria-hidden="true" />
             <span>{viewpoint.latitude.toFixed(5)}, {viewpoint.longitude.toFixed(5)}</span>

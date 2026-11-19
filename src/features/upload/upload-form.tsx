@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { isSignedIn } from "@/lib/auth-session";
 import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
 import { validatePhoto } from "@/features/upload/upload-service";
+import { categoryGroups, type CategoryId } from "@/lib/categories";
 
 export function UploadForm() {
   const router = useRouter();
@@ -65,6 +66,7 @@ export function UploadForm() {
     const description = String(data.get("description") ?? "").trim();
     const latitude = Number(data.get("latitude"));
     const longitude = Number(data.get("longitude"));
+    const categoryIds = data.getAll("categoryIds").map(String) as CategoryId[];
     if (!title || !description) {
       setError("Add a title and description.");
       return;
@@ -109,6 +111,7 @@ export function UploadForm() {
         description,
         image: uploaded.publicUrl,
         photoName: photo.name,
+        categoryIds,
       });
       router.push(`/viewpoints/${id}`);
     } catch (submitError) {
@@ -198,6 +201,23 @@ export function UploadForm() {
               <span>Longitude</span>
               <Input name="longitude" inputMode="decimal" placeholder="-95.2353" required step="any" type="number" />
             </label>
+          </fieldset>
+
+          <fieldset className="category-fields">
+            <legend>Categories <span>Choose any that fit</span></legend>
+            {categoryGroups.map((group) => (
+              <div className="category-group" key={group.id}>
+                <h2>{group.label}</h2>
+                <div className="category-options">
+                  {group.categories.map((category) => (
+                    <label className="category-option" key={category.id}>
+                      <input name="categoryIds" type="checkbox" value={category.id} />
+                      <span>{category.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </fieldset>
 
           {error && <p className="form-error" role="alert">{error}</p>}

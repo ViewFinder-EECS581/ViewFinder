@@ -6,6 +6,7 @@ export type Viewpoint = {
   longitude: number;
   note: string;
   image: string;
+  categoryIds?: string[];
 };
 
 export const mockViewpoints: Viewpoint[] = [
@@ -28,6 +29,7 @@ export const mockViewpoints: Viewpoint[] = [
     note: "A riverside pause beneath the open Kansas sky.",
     image:
       "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=720&q=85",
+    categoryIds: ["river", "forest", "sunset"],
   },
   {
     id: "potter-lake",
@@ -38,6 +40,7 @@ export const mockViewpoints: Viewpoint[] = [
     note: "A calm pocket of water on the hilltop campus.",
     image:
       "https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=720&q=85",
+    categoryIds: ["lake", "sunrise"],
   },
   {
     id: "prairie-park",
@@ -48,6 +51,7 @@ export const mockViewpoints: Viewpoint[] = [
     note: "A quiet trail through prairie and woodland.",
     image:
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=720&q=85",
+    categoryIds: ["prairie", "forest", "golden-hour"],
   },
   {
     id: "clinton-state-park",
@@ -58,5 +62,6 @@ export const mockViewpoints: Viewpoint[] = [
     note: "Big-sky shoreline a short drive west of town.",
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=720&q=85",
+    categoryIds: ["lake", "sunset"],
   },
 ];
