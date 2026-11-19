@@ -528,6 +528,111 @@ a {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.onboarding-backdrop {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(32 37 32 / 38%);
+  backdrop-filter: blur(5px);
+}
+
+.onboarding-modal {
+  position: relative;
+  width: min(520px, calc(100vw - 40px));
+  padding: 34px;
+  border: 1px solid rgb(232 233 226 / 95%);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgb(25 35 28 / 24%);
+}
+
+.onboarding-modal h1 {
+  max-width: 410px;
+  margin: 12px 0 24px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 5vw, 38px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -1px;
+}
+
+.onboarding-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: white;
+  color: #667064;
+  cursor: pointer;
+}
+
+.onboarding-close:hover {
+  background: #f4f6f1;
+}
+
+.onboarding-steps {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.onboarding-step {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #edf0e8;
+  border-radius: 5px;
+  background: #fafbf8;
+}
+
+.onboarding-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sage);
+  color: var(--green);
+}
+
+.onboarding-step strong {
+  display: block;
+  margin: 2px 0 5px;
+  font-size: 13px;
+}
+
+.onboarding-step p {
+  margin: 0;
+  color: #747d72;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.onboarding-primary {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--green);
+  color: white;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.onboarding-primary:hover {
+  background: var(--green-dark);
+}
+
 .map-topbar {
   position: absolute;
   z-index: 3;
@@ -1109,6 +1214,33 @@ a {
 }
 
 @media (max-width: 680px) {
+  .onboarding-backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .onboarding-modal {
+    max-height: calc(100svh - 24px);
+    width: 100%;
+    overflow-y: auto;
+    padding: 26px 20px 20px;
+  }
+
+  .onboarding-modal h1 {
+    margin-right: 34px;
+    font-size: 29px;
+  }
+
+  .onboarding-step {
+    grid-template-columns: 36px 1fr;
+    gap: 10px;
+  }
+
+  .onboarding-icon {
+    width: 36px;
+    height: 36px;
+  }
+
   .login-shell {
     min-height: 100svh;
     grid-template-columns: 1fr;
