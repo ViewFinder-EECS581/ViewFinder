@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { signIn } from "@/lib/auth-session";
 
 type AuthMode = "login" | "signup";
 
@@ -14,6 +15,7 @@ export function LoginScreen() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    signIn();
     router.push("/map");
   }
 

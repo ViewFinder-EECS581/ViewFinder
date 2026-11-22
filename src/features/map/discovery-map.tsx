@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
 import {
@@ -10,13 +10,24 @@ import {
   ListFilter,
   MapPin,
   Menu,
+  Navigation,
   Search,
   SlidersHorizontal,
   Sparkles,
   X,
 } from "lucide-react";
 import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
+import {
+  getAllViewpoints,
+  subscribeToViewpoints,
+} from "@/lib/viewpoint-store";
 import { BaseMap } from "@/features/map/base-map";
+import { getDirectionsUrl } from "@/features/viewpoints/directions";
+import {
+  getOnboardingDismissedSnapshot,
+  rememberOnboardingDismissal,
+  subscribeToOnboarding,
+} from "@/features/map/onboarding";
 
 const initialMapView = {
   longitude: mockViewpoints[0].longitude,
@@ -32,14 +43,52 @@ export function DiscoveryMap() {
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [viewpoints, setViewpoints] = useState(getAllViewpoints);
+  const onboardingDismissed = useSyncExternalStore(
+    subscribeToOnboarding,
+    getOnboardingDismissedSnapshot,
+    () => true,
+  );
+  const onboardingOpen = !onboardingDismissed;
+  const onboardingCloseRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    return subscribeToViewpoints(() => setViewpoints(getAllViewpoints()));
+  }, []);
+
+  const dismissOnboarding = useCallback(() => {
+    try {
+      rememberOnboardingDismissal(window.localStorage);
+    } catch {
+      // The modal can still be dismissed when storage is unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!onboardingOpen) return;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    onboardingCloseRef.current?.focus();
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") dismissOnboarding();
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      previouslyFocused?.focus();
+    };
+  }, [dismissOnboarding, onboardingOpen]);
 
   const visibleViewpoints = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return mockViewpoints;
-    return mockViewpoints.filter((viewpoint) =>
+    if (!query) return viewpoints;
+    return viewpoints.filter((viewpoint) =>
       `${viewpoint.name} ${viewpoint.area}`.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [search, viewpoints]);
 
   function selectViewpoint(viewpoint: Viewpoint) {
     setSelected(viewpoint);
@@ -55,6 +104,64 @@ export function DiscoveryMap() {
 
   return (
     <main className="discovery-shell">
+      {onboardingOpen && (
+        <div className="onboarding-backdrop">
+          <section
+            aria-labelledby="onboarding-title"
+            aria-modal="true"
+            className="onboarding-modal"
+            role="dialog"
+          >
+            <button
+              aria-label="Close welcome guide"
+              className="onboarding-close"
+              onClick={dismissOnboarding}
+              ref={onboardingCloseRef}
+              type="button"
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+            <p className="eyebrow">Welcome to ViewFinder</p>
+            <h1 id="onboarding-title">Find a place worth slowing down for.</h1>
+            <div className="onboarding-steps">
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <Compass aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Explore the map</strong>
+                  <p>Drag to move, pinch or scroll to zoom, and select a marker to view a place.</p>
+                </div>
+              </div>
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <SlidersHorizontal aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Search and filter</strong>
+                  <p>Use search or Filters to narrow down viewpoints and find a view that fits.</p>
+                </div>
+              </div>
+              <div className="onboarding-step">
+                <span className="onboarding-icon">
+                  <MapPin aria-hidden="true" size={19} />
+                </span>
+                <div>
+                  <strong>Share a viewpoint</strong>
+                  <p>Select Upload, add a photo and location details, then share your good find.</p>
+                </div>
+              </div>
+            </div>
+            <button
+              className="onboarding-primary"
+              onClick={dismissOnboarding}
+              type="button"
+            >
+              Explore the map
+            </button>
+          </section>
+        </div>
+      )}
       <BaseMap
         mapRef={mapRef}
         center={{
@@ -66,7 +173,7 @@ export function DiscoveryMap() {
         zoom={initialMapView.zoom}
         bearing={initialMapView.bearing}
       >
-        {mockViewpoints.map((viewpoint, index) => {
+        {viewpoints.map((viewpoint, index) => {
           const isSelected = selected.id === viewpoint.id;
           return (
             <Marker
@@ -121,6 +228,10 @@ export function DiscoveryMap() {
           />
         </div>
         <div className="topbar-actions">
+          <Link className="quiet-button" href="/upload">
+            <MapPin aria-hidden="true" size={16} />
+            <span>Upload</span>
+          </Link>
           <button
             aria-expanded={filtersOpen}
             className={filtersOpen ? "quiet-button active" : "quiet-button"}
@@ -184,9 +295,12 @@ export function DiscoveryMap() {
 
         <div className="place-list" aria-label="Nearby viewpoints">
           {visibleViewpoints.length === 0 ? (
-            <div className="empty-search">
+            <div className="empty-search" role="status" aria-live="polite">
               <Search size={18} />
               <p>No places match that search.</p>
+              <button type="button" onClick={() => setSearch("")}>
+                Clear search
+              </button>
             </div>
           ) : (
             visibleViewpoints.map((viewpoint, index) => (
@@ -248,15 +362,24 @@ export function DiscoveryMap() {
             <h2>{selected.name}</h2>
             <p>{selected.note}</p>
           </div>
-          <button
-            aria-label="Center map on selected place"
+          <Link
+            aria-label={`Open ${selected.name} detail`}
             className="round-arrow"
-            onClick={() => selectViewpoint(selected)}
-            title="Center map on selected place"
-            type="button"
+            href={`/viewpoints/${selected.id}`}
+            title="Open viewpoint detail"
           >
             <ArrowUpRight size={18} />
-          </button>
+          </Link>
+          <a
+            aria-label={`Get directions to ${selected.name}`}
+            className="round-arrow directions-arrow"
+            href={getDirectionsUrl(selected.latitude, selected.longitude)}
+            rel="noopener noreferrer"
+            target="_blank"
+            title="Get directions"
+          >
+            <Navigation aria-hidden="true" size={16} />
+          </a>
         </div>
       </section>
 
