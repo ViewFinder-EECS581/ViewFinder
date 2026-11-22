@@ -1,23 +1,50 @@
 "use client";
 
-export const AUTH_SESSION_KEY = "viewfinder-auth-session";
-const AUTH_SESSION_EVENT = "viewfinder:auth-session-change";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
-export function isSignedIn(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.sessionStorage.getItem(AUTH_SESSION_KEY) === "signed-in";
-}
+type AuthSessionState =
+  | { status: "loading"; user: null; error: null }
+  | { status: "signed-out"; user: null; error: null }
+  | { status: "signed-in"; user: User; error: null }
+  | { status: "error"; user: null; error: string };
 
-export function signIn(): void {
-  window.sessionStorage.setItem(AUTH_SESSION_KEY, "signed-in");
-  window.dispatchEvent(new Event(AUTH_SESSION_EVENT));
-}
+export function useAuthSession(): AuthSessionState {
+  let configError: string | null = null;
+  try {
+    getSupabaseConfig();
+  } catch (error) {
+    configError =
+      error instanceof Error
+        ? error.message
+        : "Supabase is not configured.";
+  }
+  const [state, setState] = useState<AuthSessionState>(() =>
+    configError
+      ? { status: "error", user: null, error: configError }
+      : { status: "loading", user: null, error: null },
+  );
 
-export function subscribeToAuthSession(listener: () => void): () => void {
-  window.addEventListener(AUTH_SESSION_EVENT, listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    window.removeEventListener(AUTH_SESSION_EVENT, listener);
-    window.removeEventListener("storage", listener);
-  };
+  useEffect(() => {
+    if (configError) return;
+    let active = true;
+    const { data } = createSupabaseBrowserClient().auth.onAuthStateChange(
+      (_event, session) => {
+        if (!active) return;
+        setState(
+          session?.user
+            ? { status: "signed-in", user: session.user, error: null }
+            : { status: "signed-out", user: null, error: null },
+        );
+      },
+    );
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, [configError]);
+
+  return state;
 }

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MapPin, Navigation } from "lucide-react";
-import { getViewpoint, subscribeToViewpoints, type SubmittedViewpoint } from "@/lib/viewpoint-store";
+import {
+  fetchSubmittedViewpoint,
+  getMockViewpoint,
+  type SubmittedViewpoint,
+} from "@/lib/viewpoint-store";
 import type { Viewpoint } from "@/lib/mock-viewpoints";
 import { RichText } from "@/features/viewpoints/rich-text";
 import { getDirectionsUrl } from "@/features/viewpoints/directions";
@@ -39,11 +43,60 @@ function ViewpointImage({ name, src }: { name: string; src: string }) {
 }
 
 export function ViewpointDetail({ id }: { id: string }) {
-  const [viewpoint, setViewpoint] = useState<Viewpoint | SubmittedViewpoint | undefined>(() => getViewpoint(id));
+  const [viewpoint, setViewpoint] = useState<
+    Viewpoint | SubmittedViewpoint | undefined
+  >(() => getMockViewpoint(id));
+  const [loading, setLoading] = useState(() => !getMockViewpoint(id));
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    return subscribeToViewpoints(() => setViewpoint(getViewpoint(id)));
+    let active = true;
+    const mock = getMockViewpoint(id);
+    if (mock) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void fetchSubmittedViewpoint(id)
+      .then((submitted) => {
+        if (active) setViewpoint(submitted);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Could not load viewpoint from Supabase.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [id]);
+
+  if (loading) {
+    return (
+      <main className="detail-shell detail-not-found">
+        <p className="eyebrow">One moment</p>
+        <h1>Loading viewpoint…</h1>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="detail-shell detail-not-found">
+        <p className="eyebrow">Couldn&apos;t load this place</p>
+        <h1>{loadError}</h1>
+        <Link className="detail-back-link" href="/map">Back to the map</Link>
+      </main>
+    );
+  }
 
   if (!viewpoint) {
     return (

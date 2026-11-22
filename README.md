@@ -7,7 +7,7 @@
 | Layer                   | Choice                          | Notes                                                                                                                                                                  |
 | ----------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Framework**           | Next.js (App Router) + React    | Next.js 16 is the current major version. MapLibre's worker bundling needs Next.js 15 or later.                                                                         |
-| **Language**            | TypeScript (strict)             | Types generated from the Supabase schema                                                                                                                               |
+| **Language**            | TypeScript (strict)             | Local database types track the `public.viewpoints` schema                                                                                                               |
 | **Styling**             | Tailwind CSS v4                 | Theme tokens live in CSS, with no `tailwind.config` file                                                                                                               |
 | **UI components**       | shadcn/ui (Radix-based)         | Components are copied into the repo, so the team owns the code. Neutral base color for a minimalist look. Initialize with `npx shadcn@latest init`                     |
 | **Database**            | Supabase Postgres               | Schema changes go through Supabase CLI migrations committed to the repo. RLS enforces who can read and write                                                           |
@@ -26,7 +26,7 @@
 - The legacy keys are documented as working until the end of 2026. That's about two months away, so use the new keys from the start.
 - Suggested environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and a server-only `SUPABASE_SECRET_KEY`. The secret key never goes in client code.
 
-**Sessions in Next.js.** Server Components can't write cookies, so a proxy layer refreshes expired auth tokens. I believe Next.js 16 renamed `middleware` to `proxy`, but that's from memory, so check the Supabase docs for the exact setup.
+**Sessions in Next.js.** `src/proxy.ts` refreshes Supabase Auth cookies with `auth.getClaims()`. Browser and server clients use the cookie-based session from `@supabase/ssr`.
 
 **Architecture change.** The old draft had a separate Express API. Now the browser talks to Supabase through RLS, and any server-only logic goes in Next.js route handlers or server actions. The "API alone touches the database" rule becomes "RLS enforces access on every table."
 
@@ -46,10 +46,15 @@
 
 1. Install Node.js 20.9 or newer.
 2. Install dependencies: `npm install`
-3. Start the development server: `npm run dev`
-4. Open [http://localhost:3000](http://localhost:3000)
+3. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the Supabase project’s Connect dialog.
+4. Start the development server: `npm run dev`
+5. Open [http://localhost:3000](http://localhost:3000)
 
-Run `npm run lint`, `npm run typecheck`, and `npm run build` before opening a pull request. Copy `.env.example` to `.env.local` for local settings; never commit credentials. The scaffold's sign-in page is a preview and does not create or authenticate accounts. Map browsing is public, with the current demo region set to Lawrence, Kansas.
+In Supabase Authentication settings, allow the app’s callback URL (for local development, `http://localhost:3000/auth/callback`) in the redirect URL list. Account creation uses email/password; when email confirmation is enabled, users must confirm their email before signing in. The public map combines the sample Lawrence viewpoints with records saved in `public.viewpoints`.
+
+The `viewpoints` Storage bucket is public for photo viewing. Its insert policy limits authenticated uploads to each user’s own user-ID folder. The `viewpoints` table permits public reads and authenticated inserts for the signed-in owner. RLS remains the access-control boundary; do not expose a Supabase secret key in client code or commit `.env.local`.
+
+Run `npm run lint`, `npm run typecheck`, and `npm run build` before opening a pull request. Never commit credentials.
 
 ## Project workflow
 
@@ -61,8 +66,8 @@ Run `npm run lint`, `npm run typecheck`, and `npm run build` before opening a pu
 
 ## MVP wireframe scope
 
-- Minimalist sign-in and create-account preview
+- Email/password sign-in and account creation through Supabase Auth
 - Public, responsive discovery map with sample Lawrence viewpoints, searchable list, selected-place card, and 3D buildings
-- Local sample data only; no Supabase, route protection, real user accounts, or saved changes yet
+- Supabase-backed shared viewpoint metadata and photos, with public browsing
 
 See [`docs/style-guide.md`](./docs/style-guide.md) for UI palette and component conventions.

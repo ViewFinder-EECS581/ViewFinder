@@ -5,18 +5,71 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/auth-session";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type AuthMode = "login" | "signup";
 
-export function LoginScreen() {
+export function LoginScreen({
+  confirmationError = false,
+}: {
+  confirmationError?: boolean;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(
+    confirmationError
+      ? "We couldn't confirm that email link. Please try creating your account again."
+      : "",
+  );
+  const [notice, setNotice] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    signIn();
-    router.push("/map");
+    setError("");
+    setNotice("");
+    setSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      if (mode === "signup") {
+        const name = String(formData.get("name") ?? "").trim();
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: name },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        if (signUpError) throw signUpError;
+        if (!data.session) {
+          setNotice("Check your email to confirm your account, then sign in.");
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+      }
+
+      router.replace("/map");
+      router.refresh();
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Authentication failed. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -87,6 +140,8 @@ export function LoginScreen() {
               aria-pressed={mode === "login"}
               onClick={() => {
                 setMode("login");
+                setError("");
+                setNotice("");
               }}
             >
               Sign in
@@ -97,6 +152,8 @@ export function LoginScreen() {
               aria-pressed={mode === "signup"}
               onClick={() => {
                 setMode("signup");
+                setError("");
+                setNotice("");
               }}
             >
               Create account
@@ -138,15 +195,20 @@ export function LoginScreen() {
                 type="password"
               />
             </label>
-            <Button className="auth-submit" type="submit">
-              <span>{mode === "login" ? "Sign in" : "Create account"}</span>
+            <Button className="auth-submit" disabled={submitting} type="submit">
+              <span>
+                {submitting
+                  ? "Please wait…"
+                  : mode === "login"
+                    ? "Sign in"
+                    : "Create account"}
+              </span>
               <span aria-hidden="true">↗</span>
             </Button>
           </form>
 
-          <p className="preview-notice">
-            Preview mode · Sign-in will be connected to your account next.
-          </p>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {notice && <p className="preview-notice" role="status">{notice}</p>}
           <div className="login-divider">
             <span />
             <span>or</span>
