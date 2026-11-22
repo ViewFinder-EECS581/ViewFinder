@@ -6,5 +6,5 @@ export default async function ViewpointPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ViewpointDetail id={id} />;
+  return <ViewpointDetail id={id} key={id} />;
 }

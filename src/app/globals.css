@@ -738,7 +738,7 @@ a {
   gap: 9px;
   color: #3a4339;
   font-weight: 600;
-  cursor: default;
+  cursor: pointer;
 }
 
 .profile-avatar {
@@ -1673,6 +1673,10 @@ a {
   color: #a34d3f;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.map-data-error {
+  margin-bottom: 12px;
 }
 
 .detail-layout {

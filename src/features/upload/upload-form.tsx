@@ -1,13 +1,13 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, LoaderCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { isSignedIn, subscribeToAuthSession } from "@/lib/auth-session";
-import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
+import { useAuthSession } from "@/lib/auth-session";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   getFriendlyUploadError,
   validatePhoto,
@@ -15,21 +15,10 @@ import {
 import { RichTextEditor, type JSONContent } from "@/features/upload/rich-text-editor";
 import { richTextText, sanitizeRichTextJson } from "@/features/viewpoints/rich-text";
 
-const subscribeToNothing = () => () => {};
-
 export function UploadForm() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hydrated = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
-  const signedIn = useSyncExternalStore(
-    subscribeToAuthSession,
-    isSignedIn,
-    () => false,
-  );
+  const auth = useAuthSession();
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -41,10 +30,10 @@ export function UploadForm() {
   });
 
   useEffect(() => {
-    if (hydrated && !signedIn) {
+    if (auth.status === "signed-out") {
       router.replace("/?next=/upload");
     }
-  }, [hydrated, router, signedIn]);
+  }, [auth.status, router]);
 
   useEffect(() => {
     return () => {
@@ -83,6 +72,10 @@ export function UploadForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (auth.status !== "signed-in") {
+      setError("Sign in before publishing a viewpoint.");
+      return;
+    }
     if (!photo) {
       setError("Add a photo to continue.");
       fileInputRef.current?.focus();
@@ -128,18 +121,24 @@ export function UploadForm() {
         throw new Error("The photo upload did not return a public URL.");
       }
 
-      const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")}-${Date.now()}`;
-      saveSubmittedViewpoint({
-        id,
-        name: title,
-        area: "Uploaded viewpoint",
-        latitude,
-        longitude,
-        note: descriptionText,
-        description: descriptionJson,
-        image: uploaded.publicUrl,
-        photoName: photo.name,
-      });
+      const id = crypto.randomUUID();
+      const { error: insertError } = await createSupabaseBrowserClient()
+        .from("viewpoints")
+        .insert({
+          id,
+          user_id: auth.user.id,
+          name: title,
+          area: "Uploaded viewpoint",
+          latitude,
+          longitude,
+          description: descriptionJson,
+          photo_path: uploaded.path,
+          photo_name: photo.name,
+        });
+      if (insertError) {
+        throw new Error(`The viewpoint could not be saved: ${insertError.message}`);
+      }
+
       router.push(`/viewpoints/${id}`);
     } catch (submitError) {
       setError(getFriendlyUploadError(submitError));
@@ -148,7 +147,14 @@ export function UploadForm() {
     }
   }
 
-  if (!hydrated || !signedIn) return null;
+  if (auth.status === "loading" || auth.status === "signed-out") return null;
+  if (auth.status === "error") {
+    return (
+      <main className="upload-shell">
+        <p className="form-error" role="alert">{auth.error}</p>
+      </main>
+    );
+  }
 
   return (
     <main className="upload-shell">

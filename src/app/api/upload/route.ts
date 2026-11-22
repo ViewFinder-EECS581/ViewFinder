@@ -71,7 +71,10 @@ export async function POST(request: Request) {
     const type = validatePhoto(bytes, file.type, bytes.byteLength);
     const extension = extensionForType(type);
     const path = `${user.id}/${randomUUID()}.${extension}`;
-    const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "viewpoints";
+    const bucket =
+      process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ??
+      process.env.SUPABASE_STORAGE_BUCKET ??
+      "viewpoints";
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Marker, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   Compass,
@@ -18,9 +19,12 @@ import {
 } from "lucide-react";
 import { mockViewpoints, type Viewpoint } from "@/lib/mock-viewpoints";
 import {
+  fetchSubmittedViewpoints,
   getAllViewpoints,
-  subscribeToViewpoints,
+  type SubmittedViewpoint,
 } from "@/lib/viewpoint-store";
+import { useAuthSession } from "@/lib/auth-session";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { BaseMap } from "@/features/map/base-map";
 import { getDirectionsUrl } from "@/features/viewpoints/directions";
 import {
@@ -39,11 +43,21 @@ const initialMapView = {
 
 export function DiscoveryMap() {
   const mapRef = useRef<MapRef>(null);
+  const router = useRouter();
+  const auth = useAuthSession();
   const [selected, setSelected] = useState<Viewpoint>(mockViewpoints[0]);
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewpoints, setViewpoints] = useState(getAllViewpoints);
+  const [submittedViewpoints, setSubmittedViewpoints] = useState<
+    SubmittedViewpoint[]
+  >([]);
+  const [viewpointLoadError, setViewpointLoadError] = useState("");
+  const [signOutError, setSignOutError] = useState("");
+  const viewpoints = useMemo(
+    () => getAllViewpoints(submittedViewpoints),
+    [submittedViewpoints],
+  );
   const onboardingDismissed = useSyncExternalStore(
     subscribeToOnboarding,
     getOnboardingDismissedSnapshot,
@@ -53,7 +67,22 @@ export function DiscoveryMap() {
   const onboardingCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    return subscribeToViewpoints(() => setViewpoints(getAllViewpoints()));
+    let active = true;
+    void fetchSubmittedViewpoints()
+      .then((submitted) => {
+        if (active) setSubmittedViewpoints(submitted);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setViewpointLoadError(
+          error instanceof Error
+            ? error.message
+            : "Could not load viewpoints from Supabase.",
+        );
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const dismissOnboarding = useCallback(() => {
@@ -100,6 +129,19 @@ export function DiscoveryMap() {
       duration: 900,
     });
     setListOpen(false);
+  }
+
+  async function handleSignOut() {
+    setSignOutError("");
+    try {
+      const { error } = await createSupabaseBrowserClient().auth.signOut();
+      if (error) throw error;
+      router.replace("/");
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error ? error.message : "Could not sign out.",
+      );
+    }
   }
 
   return (
@@ -242,14 +284,28 @@ export function DiscoveryMap() {
             <span>Filters</span>
           </button>
           <span className="topbar-divider" />
-          <Link
-            aria-label="Sign in or create an account"
-            className="profile-chip"
-            href="/"
-          >
-            <span className="profile-avatar">G</span>
-            <span>Sign in</span>
-          </Link>
+          {auth.status === "signed-in" ? (
+            <button
+              aria-label="Sign out"
+              className="profile-chip"
+              onClick={handleSignOut}
+              type="button"
+            >
+              <span className="profile-avatar">
+                {(auth.user.email?.[0] ?? "U").toUpperCase()}
+              </span>
+              <span>Sign out</span>
+            </button>
+          ) : (
+            <Link
+              aria-label="Sign in or create an account"
+              className="profile-chip"
+              href="/"
+            >
+              <span className="profile-avatar">G</span>
+              <span>Sign in</span>
+            </Link>
+          )}
         </div>
         <button
           aria-label="Open places list"
@@ -292,6 +348,15 @@ export function DiscoveryMap() {
         <p className="panel-subtitle">
           A few favorite places, shared by locals.
         </p>
+        {(viewpointLoadError ||
+          signOutError ||
+          (auth.status === "error" ? auth.error : "")) && (
+          <p className="form-error map-data-error" role="alert">
+            {viewpointLoadError ||
+              signOutError ||
+              (auth.status === "error" ? auth.error : "")}
+          </p>
+        )}
 
         <div className="place-list" aria-label="Nearby viewpoints">
           {visibleViewpoints.length === 0 ? (
