@@ -12,6 +12,7 @@ import {
   getFriendlyUploadError,
   validatePhoto,
 } from "@/features/upload/upload-service";
+import { extractPhotoMetadata, type PhotoMetadata } from "@/features/upload/exif";
 import { RichTextEditor, type JSONContent } from "@/features/upload/rich-text-editor";
 import { richTextText, sanitizeRichTextJson } from "@/features/viewpoints/rich-text";
 
@@ -35,6 +36,17 @@ export function UploadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [readingPhoto, setReadingPhoto] = useState(false);
   const [error, setError] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [capturedAt, setCapturedAt] = useState("");
+  const [metadataNote, setMetadataNote] = useState("");
+  // Whether the current field values came from the photo (not typed by the
+  // user), so a later photo without EXIF can clear them without ever wiping
+  // something the user entered themselves.
+  const locationFromPhoto = useRef(false);
+  const timeFromPhoto = useRef(false);
+  // Guards against a slow read of an earlier photo overwriting a newer choice.
+  const photoRequest = useRef(0);
   const [description, setDescription] = useState<JSONContent>({
     type: "doc",
     content: [{ type: "paragraph" }],
@@ -52,32 +64,73 @@ export function UploadForm() {
     };
   }, [preview]);
 
+  function applyMetadata(metadata: PhotoMetadata) {
+    const { latitude: lat, longitude: lng } = metadata;
+    const hasLocation = lat !== undefined && lng !== undefined;
+
+    if (hasLocation) {
+      setLatitude(String(Number(lat.toFixed(6))));
+      setLongitude(String(Number(lng.toFixed(6))));
+      locationFromPhoto.current = true;
+    } else if (locationFromPhoto.current) {
+      // The previous photo filled these in; this one has nothing to offer.
+      setLatitude("");
+      setLongitude("");
+      locationFromPhoto.current = false;
+    }
+
+    if (metadata.capturedAt) {
+      setCapturedAt(metadata.capturedAt);
+      timeFromPhoto.current = true;
+    } else if (timeFromPhoto.current) {
+      setCapturedAt("");
+      timeFromPhoto.current = false;
+    }
+
+    setMetadataNote(
+      hasLocation
+        ? "Location filled in from the photo's GPS data. Adjust it if it isn't right."
+        : "This photo has no GPS location. Enter where it was taken below.",
+    );
+  }
+
   function handlePhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+    const input = event.target;
+    const file = input.files?.[0] ?? null;
+    const requestId = ++photoRequest.current;
     setError("");
+    setMetadataNote("");
     if (!file) {
       setPhoto(null);
       setPreview("");
+      setReadingPhoto(false);
       return;
     }
     setReadingPhoto(true);
     setPhoto(null);
     setPreview("");
-    void file.arrayBuffer()
-      .then((buffer) => {
+    void (async () => {
+      try {
+        const buffer = await file.arrayBuffer();
         validatePhoto(new Uint8Array(buffer), file.type, file.size);
+        // Never throws: a photo without readable EXIF just returns {}.
+        const metadata = await extractPhotoMetadata(buffer);
+        if (requestId !== photoRequest.current) return;
         setPhoto(file);
         setPreview(URL.createObjectURL(file));
-      })
-      .catch((validationError) => {
+        applyMetadata(metadata);
+      } catch (validationError) {
+        if (requestId !== photoRequest.current) return;
         setError(
           validationError instanceof Error
             ? validationError.message
             : "Choose a valid PNG, JPEG, or WEBP image.",
         );
-        event.target.value = "";
-      })
-      .finally(() => setReadingPhoto(false));
+        input.value = "";
+      } finally {
+        if (requestId === photoRequest.current) setReadingPhoto(false);
+      }
+    })();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -139,6 +192,7 @@ export function UploadForm() {
         description: descriptionJson,
         image: uploaded.publicUrl,
         photoName: photo.name,
+        ...(capturedAt ? { capturedAt } : {}),
       });
       router.push(`/viewpoints/${id}`);
     } catch (submitError) {
@@ -213,13 +267,55 @@ export function UploadForm() {
             <legend><MapPin size={15} aria-hidden="true" /> Location</legend>
             <label className="field">
               <span>Latitude</span>
-              <Input name="latitude" inputMode="decimal" placeholder="38.9717" required step="any" type="number" />
+              <Input
+                name="latitude"
+                inputMode="decimal"
+                placeholder="38.9717"
+                required
+                step="any"
+                type="number"
+                value={latitude}
+                onChange={(event) => {
+                  locationFromPhoto.current = false;
+                  setMetadataNote("");
+                  setLatitude(event.target.value);
+                }}
+              />
             </label>
             <label className="field">
               <span>Longitude</span>
-              <Input name="longitude" inputMode="decimal" placeholder="-95.2353" required step="any" type="number" />
+              <Input
+                name="longitude"
+                inputMode="decimal"
+                placeholder="-95.2353"
+                required
+                step="any"
+                type="number"
+                value={longitude}
+                onChange={(event) => {
+                  locationFromPhoto.current = false;
+                  setMetadataNote("");
+                  setLongitude(event.target.value);
+                }}
+              />
             </label>
+            {metadataNote && (
+              <p className="upload-hint" role="status">{metadataNote}</p>
+            )}
           </fieldset>
+
+          <label className="field">
+            <span>Date and time taken (optional)</span>
+            <Input
+              name="capturedAt"
+              type="datetime-local"
+              value={capturedAt}
+              onChange={(event) => {
+                timeFromPhoto.current = false;
+                setCapturedAt(event.target.value);
+              }}
+            />
+          </label>
 
           {error && <p className="form-error" role="alert">{error}</p>}
 

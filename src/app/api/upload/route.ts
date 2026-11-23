@@ -5,6 +5,7 @@ import {
   validatePhoto,
   type PhotoMimeType,
 } from "@/features/upload/upload-service";
+import { stripImageMetadata } from "@/features/upload/strip-metadata";
 
 export const runtime = "nodejs";
 
@@ -69,13 +70,15 @@ export async function POST(request: Request) {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const type = validatePhoto(bytes, file.type, bytes.byteLength);
+    // Never store the photographer's GPS data: public copies must be clean.
+    const cleanBytes = await stripImageMetadata(bytes, type);
     const extension = extensionForType(type);
     const path = `${user.id}/${randomUUID()}.${extension}`;
     const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "viewpoints";
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(path, bytes, {
+      .upload(path, cleanBytes, {
         contentType: type,
         upsert: false,
       });
