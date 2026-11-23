@@ -29,6 +29,9 @@ export function RichTextEditor({ value, onChange }: RichTextEditorProps) {
         role: "textbox",
         "aria-label": "Description",
         "aria-multiline": "true",
+        // Points at the upload form's field error. Tiptap sets attributes once,
+        // so it is always present; an id with no matching element is ignored.
+        "aria-describedby": "description-error",
       },
     },
     onUpdate: ({ editor: currentEditor }) => {

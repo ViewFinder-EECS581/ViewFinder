@@ -1,4 +1,6 @@
-"use client";
+// No "use client": the sanitizers are shared with /api/viewpoints/validate,
+// and a "use client" module's functions can't be called from a route handler.
+// Only client components import RichText, so it still renders on the client.
 
 import type { ReactNode } from "react";
 import type { JSONContent } from "@tiptap/react";

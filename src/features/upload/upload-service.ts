@@ -1,6 +1,9 @@
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_PHOTO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
+// File-picker hint only; validatePhoto() is the real check on client and server.
+export const PHOTO_ACCEPT = ALLOWED_PHOTO_TYPES.join(",");
+
 export type PhotoMimeType = (typeof ALLOWED_PHOTO_TYPES)[number];
 
 export type PhotoUploadResult = {

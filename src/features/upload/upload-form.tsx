@@ -9,14 +9,79 @@ import { Input } from "@/components/ui/input";
 import { isSignedIn, subscribeToAuthSession } from "@/lib/auth-session";
 import { saveSubmittedViewpoint } from "@/lib/viewpoint-store";
 import {
+  PHOTO_ACCEPT,
   getFriendlyUploadError,
   validatePhoto,
 } from "@/features/upload/upload-service";
 import { extractPhotoMetadata, type PhotoMetadata } from "@/features/upload/exif";
 import { RichTextEditor, type JSONContent } from "@/features/upload/rich-text-editor";
-import { richTextText, sanitizeRichTextJson } from "@/features/viewpoints/rich-text";
+import {
+  TITLE_MAX_LENGTH,
+  validateViewpointInput,
+  type ValidViewpointInput,
+  type ViewpointField,
+  type ViewpointFieldErrors,
+} from "@/lib/validation/viewpoint";
 
 const subscribeToNothing = () => () => {};
+
+type FormField = ViewpointField | "photo";
+type FormFieldErrors = Partial<Record<FormField, string>>;
+
+// Visual order of the fields, so focus lands on the first problem a sighted
+// user would see, and the element to focus for each one.
+const FIELD_FOCUS_TARGETS: [FormField, string][] = [
+  ["title", "[name='title']"],
+  ["description", ".rich-text-editor-content"],
+  ["photo", "#viewpoint-photo"],
+  ["latitude", "[name='latitude']"],
+  ["longitude", "[name='longitude']"],
+];
+
+type ServerCheck =
+  | { ok: true; value: ValidViewpointInput }
+  | { ok: false; fieldErrors: ViewpointFieldErrors };
+
+// The server is the authoritative check; the client-side pass only gives
+// faster feedback. Field errors come back as data, anything else throws.
+async function checkViewpointOnServer(input: Record<string, unknown>): Promise<ServerCheck> {
+  let response: Response;
+  try {
+    response = await fetch("/api/viewpoints/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    // getFriendlyUploadError would blame "photo storage" for a TypeError here.
+    throw new Error("We couldn't reach ViewFinder. Check your connection and try again.");
+  }
+
+  const body = (await response.json().catch(() => ({}))) as {
+    viewpoint?: ValidViewpointInput;
+    error?: string;
+    fieldErrors?: ViewpointFieldErrors;
+  };
+  if (response.status === 422 && body.fieldErrors) {
+    return { ok: false, fieldErrors: body.fieldErrors };
+  }
+  if (!response.ok || !body.viewpoint) {
+    throw new Error(body.error ?? "We couldn't check this viewpoint. Try again.");
+  }
+  return { ok: true, value: body.viewpoint };
+}
+
+// Rendered inside each field's <label>, so it is aria-hidden to keep it out of
+// the input's accessible name; aria-describedby still reads it, because
+// directly referenced content is announced even when aria-hidden.
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p aria-hidden="true" className="form-error" id={id}>
+      {message}
+    </p>
+  );
+}
 
 export function UploadForm() {
   const router = useRouter();
@@ -36,6 +101,7 @@ export function UploadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [readingPhoto, setReadingPhoto] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FormFieldErrors>({});
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [capturedAt, setCapturedAt] = useState("");
@@ -63,6 +129,23 @@ export function UploadForm() {
       if (preview) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  function clearFieldError(field: FormField) {
+    // Returning the same object skips a re-render when there's nothing to clear.
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function showFieldErrors(form: HTMLFormElement, errors: FormFieldErrors) {
+    setFieldErrors(errors);
+    // Focus the first invalid field so keyboard and screen-reader users land on the problem.
+    const first = FIELD_FOCUS_TARGETS.find(([field]) => errors[field]);
+    if (first) form.querySelector<HTMLElement>(first[1])?.focus();
+  }
 
   function applyMetadata(metadata: PhotoMetadata) {
     const { latitude: lat, longitude: lng } = metadata;
@@ -99,6 +182,7 @@ export function UploadForm() {
     const file = input.files?.[0] ?? null;
     const requestId = ++photoRequest.current;
     setError("");
+    clearFieldError("photo");
     setMetadataNote("");
     if (!file) {
       setPhoto(null);
@@ -121,11 +205,11 @@ export function UploadForm() {
         applyMetadata(metadata);
       } catch (validationError) {
         if (requestId !== photoRequest.current) return;
-        setError(
+        const message =
           validationError instanceof Error
             ? validationError.message
-            : "Choose a valid PNG, JPEG, or WEBP image.",
-        );
+            : "Choose a valid PNG, JPEG, or WEBP image.";
+        setFieldErrors((current) => ({ ...current, photo: message }));
         input.value = "";
       } finally {
         if (requestId === photoRequest.current) setReadingPhoto(false);
@@ -135,34 +219,37 @@ export function UploadForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setError("");
-    if (!photo) {
-      setError("Add a photo to continue.");
-      fileInputRef.current?.focus();
-      return;
-    }
 
-    const data = new FormData(event.currentTarget);
-    const title = String(data.get("title") ?? "").trim();
-    const descriptionJson = sanitizeRichTextJson(description);
-    const descriptionText = richTextText(descriptionJson);
-    const latitude = Number(data.get("latitude"));
-    const longitude = Number(data.get("longitude"));
-    if (!title || !descriptionText) {
-      setError("Add a title and description.");
+    const input = {
+      title: String(new FormData(form).get("title") ?? ""),
+      description,
+      latitude,
+      longitude,
+    };
+    const clientCheck = validateViewpointInput(input);
+    const clientErrors: FormFieldErrors = clientCheck.ok ? {} : { ...clientCheck.fieldErrors };
+    if (!photo) clientErrors.photo = "Add a photo to continue.";
+    if (!clientCheck.ok || !photo) {
+      showFieldErrors(form, clientErrors);
       return;
     }
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      setError("Enter a valid latitude between -90 and 90.");
-      return;
-    }
-    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      setError("Enter a valid longitude between -180 and 180.");
-      return;
-    }
+    setFieldErrors({});
 
     setSubmitting(true);
     try {
+      // Server check runs before the photo upload so a rejected viewpoint
+      // never leaves an orphaned file in storage.
+      const serverCheck = await checkViewpointOnServer(input);
+      if (!serverCheck.ok) {
+        showFieldErrors(form, serverCheck.fieldErrors);
+        return;
+      }
+      // Save what the server approved, not the client's own copy.
+      const { title, description: descriptionJson, descriptionText } = serverCheck.value;
+      const { latitude, longitude } = serverCheck.value;
+
       const uploadData = new FormData();
       uploadData.append("photo", photo);
       const uploadResponse = await fetch("/api/upload", {
@@ -226,19 +313,37 @@ export function UploadForm() {
         <form className="upload-form" onSubmit={handleSubmit}>
           <label className="field">
             <span>Title</span>
-            <Input name="title" placeholder="Name this view" required maxLength={80} />
+            <Input
+              name="title"
+              placeholder="Name this view"
+              required
+              maxLength={TITLE_MAX_LENGTH}
+              aria-invalid={fieldErrors.title ? true : undefined}
+              aria-describedby={fieldErrors.title ? "title-error" : undefined}
+              onChange={() => clearFieldError("title")}
+            />
+            <FieldError id="title-error" message={fieldErrors.title} />
           </label>
 
           <label className="field">
             <span>Description</span>
-            <RichTextEditor value={description} onChange={setDescription} />
+            <RichTextEditor
+              value={description}
+              onChange={(value) => {
+                clearFieldError("description");
+                setDescription(value);
+              }}
+            />
+            <FieldError id="description-error" message={fieldErrors.description} />
           </label>
 
           <div className="photo-field">
             <span>Photo</span>
             <input
               ref={fileInputRef}
-              accept="image/png,image/jpeg,image/webp"
+              accept={PHOTO_ACCEPT}
+              aria-invalid={fieldErrors.photo ? true : undefined}
+              aria-describedby={fieldErrors.photo ? "photo-error" : undefined}
               className="photo-input"
               id="viewpoint-photo"
               name="photo"
@@ -261,6 +366,11 @@ export function UploadForm() {
                 </>
               )}
             </label>
+            {/* Not inside a <label>, and photo errors appear after an async
+                file read without moving focus, so this one announces itself. */}
+            {fieldErrors.photo && (
+              <p className="form-error" id="photo-error" role="alert">{fieldErrors.photo}</p>
+            )}
           </div>
 
           <fieldset className="location-fields">
@@ -275,12 +385,16 @@ export function UploadForm() {
                 step="any"
                 type="number"
                 value={latitude}
+                aria-invalid={fieldErrors.latitude ? true : undefined}
+                aria-describedby={fieldErrors.latitude ? "latitude-error" : undefined}
                 onChange={(event) => {
                   locationFromPhoto.current = false;
                   setMetadataNote("");
+                  clearFieldError("latitude");
                   setLatitude(event.target.value);
                 }}
               />
+              <FieldError id="latitude-error" message={fieldErrors.latitude} />
             </label>
             <label className="field">
               <span>Longitude</span>
@@ -292,12 +406,16 @@ export function UploadForm() {
                 step="any"
                 type="number"
                 value={longitude}
+                aria-invalid={fieldErrors.longitude ? true : undefined}
+                aria-describedby={fieldErrors.longitude ? "longitude-error" : undefined}
                 onChange={(event) => {
                   locationFromPhoto.current = false;
                   setMetadataNote("");
+                  clearFieldError("longitude");
                   setLongitude(event.target.value);
                 }}
               />
+              <FieldError id="longitude-error" message={fieldErrors.longitude} />
             </label>
             {metadataNote && (
               <p className="upload-hint" role="status">{metadataNote}</p>
