@@ -2,27 +2,28 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { InlineError } from "@/components/ui/inline-error";
 
 export default function ViewpointError({
   error,
-  retry,
+  reset,
 }: {
   error: Error & { digest?: string };
-  retry: () => void;
+  reset: () => void;
 }) {
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
-    <main className="route-state" role="alert">
+    <main className="route-state">
       <p className="eyebrow">Something went wrong</p>
       <h1>We couldn&apos;t load this viewpoint.</h1>
-      <p>Check your connection, then try again.</p>
+      <InlineError
+        message="Check your connection, then try again."
+        onRetry={reset}
+      />
       <div className="route-state-actions">
-        <button className="route-state-action" type="button" onClick={() => retry()}>
-          Try again
-        </button>
         <Link className="route-state-action" href="/map">
           Back to the map
         </Link>

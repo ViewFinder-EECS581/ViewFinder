@@ -85,6 +85,7 @@ textarea {
 }
 
 .route-state-spinner {
+  display: inline-block;
   width: 28px;
   height: 28px;
   border: 2px solid #dfe5dc;
@@ -98,6 +99,17 @@ textarea {
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
+}
+
+/* Size modifiers for <Spinner>; the default 28px lives on .route-state-spinner. */
+.spinner-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.spinner-lg {
+  width: 40px;
+  height: 40px;
 }
 
 .route-state-action {
@@ -894,6 +906,17 @@ a {
   opacity: 1;
 }
 
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  color: var(--green);
+}
+
 .empty-search {
   display: grid;
   min-height: 120px;
@@ -1682,6 +1705,32 @@ a {
   line-height: 1.4;
 }
 
+/* flex-wrap keeps the retry button below the message on narrow screens. */
+.inline-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+}
+
+/* Beats .route-state p so the message keeps the error color. */
+.inline-error p {
+  margin: 0;
+  color: inherit;
+}
+
+.inline-error button {
+  padding: 7px 10px;
+  border: 1px solid #e5bdb5;
+  border-radius: 4px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .detail-layout {
   display: grid;
   width: min(1100px, calc(100% - 40px));
@@ -1946,5 +1995,12 @@ a {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The rule above only shortens transitions; spinners must be stopped
+     explicitly. A static ring still signals loading. */
+  .route-state-spinner,
+  .spinner {
+    animation: none;
   }
 }
